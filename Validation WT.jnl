@@ -1,0 +1,83 @@
+# -*- coding: mbcs -*-
+from part import *
+from material import *
+from section import *
+from assembly import *
+from step import *
+from interaction import *
+from load import *
+from mesh import *
+from optimization import *
+from job import *
+from sketch import *
+from visualization import *
+from connectorBehavior import *
+mdb.models['Model-1'].ConstrainedSketch(name='__profile__', sheetSize=3300.0)
+mdb.models['Model-1'].sketches['__profile__'].CircleByCenterPerimeter(center=(
+    0.0, 0.0), point1=(0.0, -1700.0))
+mdb.models['Model-1'].Part(dimensionality=THREE_D, name='Tower', type=
+    DEFORMABLE_BODY)
+mdb.models['Model-1'].parts['Tower'].BaseShellExtrude(depth=80000.0, sketch=
+    mdb.models['Model-1'].sketches['__profile__'])
+del mdb.models['Model-1'].sketches['__profile__']
+mdb.models['Model-1'].Material(name='Steel')
+mdb.models['Model-1'].materials['Steel'].Density(table=((7.85e-09, ), ))
+mdb.models['Model-1'].materials['Steel'].Elastic(table=((200000.0, 0.3), ))
+mdb.models['Model-1'].HomogeneousShellSection(idealization=NO_IDEALIZATION, 
+    integrationRule=SIMPSON, material='Steel', name='Tower Section', numIntPts=
+    5, thickness=30.0, thicknessType=UNIFORM)
+mdb.models['Model-1'].parts['Tower'].SectionAssignment(offset=0.0, offsetType=
+    BOTTOM_SURFACE, region=Region(
+    faces=mdb.models['Model-1'].parts['Tower'].faces.getSequenceFromMask(mask=(
+    '[#1 ]', ), )), sectionName='Tower Section', thicknessAssignment=
+    FROM_SECTION)
+mdb.models['Model-1'].rootAssembly.DatumCsysByDefault(CARTESIAN)
+mdb.models['Model-1'].rootAssembly.Instance(dependent=ON, name='Tower-1', part=
+    mdb.models['Model-1'].parts['Tower'])
+mdb.models['Model-1'].rootAssembly.rotate(angle=-90.0, axisDirection=(1.0, 0.0, 
+    0.0), axisPoint=(0.0, 0.0, 0.0), instanceList=('Tower-1', ))
+mdb.models['Model-1'].StaticStep(name='Static-step', nlgeom=OFF, previous=
+    'Initial')
+mdb.models['Model-1'].rootAssembly.ReferencePoint(point=
+    mdb.models['Model-1'].rootAssembly.instances['Tower-1'].InterestingPoint(
+    mdb.models['Model-1'].rootAssembly.instances['Tower-1'].edges[0], CENTER))
+mdb.models['Model-1'].rootAssembly.Set(name='TopRP', referencePoints=(
+    mdb.models['Model-1'].rootAssembly.referencePoints[4], ))
+mdb.models['Model-1'].RigidBody(name='Tower-top-RBC', refPointRegion=Region(
+    referencePoints=(mdb.models['Model-1'].rootAssembly.referencePoints[4], )), 
+    tieRegion=Region(
+    edges=mdb.models['Model-1'].rootAssembly.instances['Tower-1'].edges.getSequenceFromMask(
+    mask=('[#1 ]', ), )))
+mdb.models['Model-1'].rootAssembly.engineeringFeatures.PointMassInertia(alpha=
+    0.0, composite=0.0, mass=82.0, name='Nacelle mass', region=Region(
+    referencePoints=(mdb.models['Model-1'].rootAssembly.referencePoints[4], )))
+mdb.models['Model-1'].rootAssembly.engineeringFeatures.PointMassInertia(alpha=
+    0.0, composite=0.0, mass=60.0, name='Rotor mass', region=Region(
+    referencePoints=(mdb.models['Model-1'].rootAssembly.referencePoints[4], )))
+mdb.models['Model-1'].DisplacementBC(createStepName='Static-step', name=
+    'FixedBase-Static', region=Region(
+    edges=mdb.models['Model-1'].rootAssembly.instances['Tower-1'].edges.getSequenceFromMask(
+    mask=('[#2 ]', ), )), u1=0.0, u2=0.0, u3=0.0, ur1=0.0, ur2=0.0, ur3=0.0)
+mdb.models['Model-1'].rootAssembly.Surface(name='TowerSurf', side1Faces=
+    mdb.models['Model-1'].rootAssembly.instances['Tower-1'].faces)
+mdb.models['Model-1'].ExpressionField(description=
+    'p(Y) = p0*((Y/yref)^(2a)) [N/mm^2], with Y in mm', expression=
+    '(2.339577663451e-05) * (((Y+1.0)/1.000000000000e+04)**(3.000000000000e-01))'
+    , localCsys=None, name='WindPressField')
+mdb.models['Model-1'].SurfaceTraction(createStepName='Static-step', 
+    directionVector=((0.0, 0.0, 0.0), (1.0, 0.0, 0.0)), distributionType=FIELD, 
+    field='WindPressField', magnitude=1.0, name='Wind', region=
+    mdb.models['Model-1'].rootAssembly.surfaces['TowerSurf'], traction=GENERAL)
+mdb.models['Model-1'].parts['Tower'].seedPart(deviationFactor=0.1, 
+    minSizeFactor=0.1, size=500.0)
+mdb.models['Model-1'].parts['Tower'].setElementType(elemTypes=(ElemType(
+    elemCode=S8R, elemLibrary=STANDARD), ElemType(elemCode=STRI65, 
+    elemLibrary=STANDARD)), regions=(
+    mdb.models['Model-1'].parts['Tower'].faces, ))
+mdb.models['Model-1'].parts['Tower'].generateMesh()
+mdb.models['Model-1'].rootAssembly.regenerate()
+mdb.Job(description='Single deterministic run: Vref = 10.0 m/s at 10 m', model=
+    'Model-1', name='ValidationWind_10ms', type=ANALYSIS)
+mdb.jobs['ValidationWind_10ms'].submit(consistencyChecking=OFF)
+mdb.jobs['ValidationWind_10ms'].waitForCompletion()
+# Save by 2721911K on 2026_03_17-22.57.22; build 2025 2024_09_20-14.00.46 RELr427 198590
